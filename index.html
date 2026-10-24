@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#102d2c">
+<title>DermaPaw AI | Skin Screening</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js">
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js">
+</script>
+</head>
+<body>
+<button id="menuOverlay" class="menu-overlay" type="button" aria-label="Close navigation menu" tabindex="-1" hidden></button>
+<aside class="sidebar" id="sidebar">
+<div class="sidebar-header">
+<button id="menuToggle" class="menu-toggle" type="button" aria-label="Collapse sidebar" aria-controls="sidebar" aria-expanded="true">☰</button>
+<a class="brand" href="#">
+<img class="brand-logo" src="assets/images/dermapaw-logo.png" alt="DermaPaw AI logo">
+<span>DermaPaw<small>AI SCREENING</small>
+</span>
+</a>
+</div>
+<p class="nav-label">WORKSPACE</p>
+<a class="nav" href="#guide" aria-label="How it works"><span class="nav-icon" aria-hidden="true">◈</span><span class="nav-text">How it works</span></a>
+<a class="nav active" href="#screening" aria-label="Skin screening" aria-current="location"><span class="nav-icon" aria-hidden="true">⌕</span><span class="nav-text">Skin screening</span></a>
+<a class="nav" href="#care-guide" aria-label="Skin care and treatment guide"><span class="nav-icon" aria-hidden="true">♡</span><span class="nav-text">Skin Care &amp; Treatment Guide</span></a>
+<a class="nav" href="#treatment" aria-label="Treatment progress"><span class="nav-icon" aria-hidden="true">▤</span><span class="nav-text">Treatment progress</span></a>
+<footer>Made with care for every paw. ♡</footer>
+</aside>
+<main>
+<section class="page-view screening-view" id="screening" aria-labelledby="screening-title">
+<header class="top">
+<div>
+<p class="eyebrow">PET HEALTH • IMAGE ANALYSIS</p>
+<h1 id="screening-title">Skin condition screening</h1>
+</div>
+
+</header>
+<section class="hero">
+<div>
+<label>DERMAPAW AI</label>
+<h2>A clearer first look<br>at your pet’s skin.</h2>
+<p>Upload a clear photo to explore possible visible skin patterns and learn what to discuss with a veterinarian.</p>
+<a href="#guide">Learn how it works ↗</a>
+</div>
+<div class="paw">🐾</div>
+</section>
+<section class="grid">
+<article class="card">
+<div class="heading">
+<div>
+<small>STEP 01</small>
+<h3>Upload pet photo</h3>
+</div>
+<b class="icon">＋</b>
+</div>
+<p class="muted">Choose a pet and upload a well-lit, close-up image.</p>
+<div class="pet-switch">
+<button class="pet selected" type="button" data-pet="cat" aria-pressed="true"><img src="assets/images/cat-9919146_960_720.png" alt="" aria-hidden="true"><span>Cat</span></button>
+<button class="pet" type="button" data-pet="dog" aria-pressed="false"><img src="assets/images/cute-little-dog-clipart-design-illustration-free-png.webp" alt="" aria-hidden="true"><span>Dog</span></button>
+</div>
+<label class="screening-pet-label" for="screeningPetName">Pet name or identifier (optional)<input id="screeningPetName" class="treatment-input" maxlength="80" placeholder="Add a name to link screening with progress tracking"></label>
+<p id="speciesNotice" class="tiny species-notice" role="note"></p>
+<section class="camera-panel" aria-labelledby="cameraTitle">
+<div class="camera-heading">
+<span class="camera-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z"></path><circle cx="12" cy="13" r="3.5"></circle></svg></span>
+<div>
+<h4 id="cameraTitle">Live Camera Capture</h4>
+<p>Take a live picture of your pet's skin to screen for visible skin patterns.</p>
+</div>
+</div>
+<p class="camera-reminder">Position your pet comfortably and capture a clear, well-lit image of the affected skin area. Do not force your pet to stay still or handle a painful area unnecessarily.</p>
+<p id="cameraStatus" class="camera-status" role="status" aria-live="polite">Your camera stays off until you choose Open Camera.</p>
+<div id="cameraViewport" class="camera-viewport" hidden>
+<video id="cameraVideo" autoplay playsinline muted aria-label="Live camera preview"></video>
+<img id="cameraStill" alt="Captured pet photo preview" hidden>
+</div>
+<div class="camera-actions">
+<button id="openCamera" class="camera-button camera-button-primary" type="button">Open Camera</button>
+<button id="switchCamera" class="camera-button" type="button" hidden>Switch Camera</button>
+<button id="capturePhoto" class="camera-button camera-button-primary" type="button" hidden disabled>Capture Photo</button>
+<button id="retakePhoto" class="camera-button" type="button" hidden>Retake Photo</button>
+<button id="useCameraPhoto" class="camera-button camera-button-primary" type="button" hidden>Use This Photo</button>
+<button id="closeCamera" class="camera-button camera-button-warning" type="button" hidden>Close Camera</button>
+</div>
+</section>
+<label id="dropzone" class="dropzone" for="imageInput" tabindex="0" role="button" aria-controls="imageInput" aria-label="Choose a JPG, JPEG, PNG, or WEBP pet photo, up to 10 megabytes">
+<b class="upload">↑</b>
+<strong>Drop an image here</strong>
+<span>or <u>browse files</u>
+</span>
+<small>JPG, JPEG, PNG or WEBP • max 10 MB</small>
+</label>
+<input id="imageInput" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" hidden>
+<div id="previewWrap" hidden>
+<img id="previewImage" alt="Pet photo preview">
+<div class="file-row">
+<span>
+<strong id="fileName">
+</strong>
+<small id="fileSize">
+</small>
+</span>
+<button id="removeImage" type="button" aria-label="Remove selected image">×</button>
+</div>
+</div>
+<button id="analyzeBtn" class="primary" type="button" disabled>
+Analyze image
+</button>
+<p id="modelStatus" class="model-status" role="status" aria-live="polite" data-state="loading">Loading the trained image model…</p>
+<p id="uploadPrivacyNote" class="tiny">Uploaded photos are analyzed in this browser and are not sent to an unrelated image service. Image classification alone cannot determine a reliable recovery timeline.</p>
+</article>
+<article class="card">
+<div class="heading">
+<div>
+<small>STEP 02</small>
+<h3>Screening results</h3>
+</div>
+<span id="resultStatus" class="badge" aria-live="polite">Loading model</span>
+</div>
+<p class="result-safety-note">These percentages represent the model's image classification scores. They do not confirm a disease or replace an examination by a licensed veterinarian.</p>
+<p class="result-safety-note">DermaPaw AI screens images for visible skin patterns. Its results are not a veterinary diagnosis. Consult a licensed veterinarian for an accurate assessment.</p>
+<div id="emptyState" class="empty">
+<div class="scan">✧<i>
+</i>
+</div>
+<h4>Your results will appear here</h4>
+<p>Upload a photo and run the image model to see all four class scores.</p>
+<span>✓ Clear lighting &nbsp; ✓ Skin in focus</span>
+</div>
+<div id="resultContent" hidden>
+<div class="summary">
+<div>
+<small>TOP PREDICTED VISIBLE SKIN-PATTERN CATEGORY</small>
+<h2 id="topLabel">—</h2>
+<p id="topDescription">
+</p>
+</div>
+<div class="ring">
+<strong id="topPercent">0%</strong>
+<small>model score</small>
+</div>
+</div>
+<p id="resultSpecies" class="result-safety-note"></p>
+<div class="score-title">
+<strong>Four-class score breakdown</strong>
+<small>Model output</small>
+</div>
+<div id="scoreList">
+</div>
+<div class="guidance">
+<b>♡</b>
+<span>
+<strong>Suggested next step</strong>
+<p id="guidanceText">
+</p>
+</span>
+</div>
+<button class="secondary" id="startTreatmentTracking" type="button" hidden>Start Treatment Tracking</button>
+<a class="secondary care-entry-button" id="openCareJourney" href="#care-guide" hidden>View Care &amp; Treatment Guide</a>
+<button class="secondary" id="resetBtn">Analyze another photo</button>
+</div>
+<div id="errorBox" class="error" role="alert" hidden>
+</div>
+</article>
+</section>
+<div class="disclaimer">
+
+<footer class="page-footer">© 2026 DermaPaw AI | EJOS <span>Built for responsible pet-care learning</span>
+</footer>
+</section>
+<section class="page-view care-guide-view" id="care-guide" aria-labelledby="care-page-title" aria-hidden="true" hidden>
+<header class="treatment-page-heading">
+<p class="eyebrow">VETERINARY-INFORMED EDUCATION • SCREENING GUIDANCE</p>
+<h1 id="care-page-title">Skin Care &amp; Treatment Guide</h1>
+<p>Explore skin-care information and step-by-step guidance for dogs and cats. Use this educational guide for safe observation and discussion with your veterinarian, not as a diagnosis or prescription.</p>
+</header>
+<section id="careGuideLibrary" class="care-guide-library" aria-labelledby="careLibraryTitle">
+<div class="care-library-heading">
+<div><p class="eyebrow">GUIDE LIBRARY</p><h2 id="careLibraryTitle">Browse skin concerns</h2><p>Choose a visible pattern to read its educational guidance. These categories are not confirmed diseases.</p></div>
+<a class="treatment-button treatment-button-quiet" href="#screening">Go to Skin Screening</a>
+</div>
+<div class="care-library-controls">
+<label class="field-label" for="careGuideSearch">Search available guides<input id="careGuideSearch" class="treatment-input" type="search" maxlength="100" placeholder="Search a skin concern or guide title"></label>
+<label class="field-label" for="careGuideSpecies">Guide species<select id="careGuideSpecies" class="treatment-input"><option value="cat">Cat</option><option value="dog">Dog</option></select></label>
+</div>
+<p class="care-species-helper">The species selector updates the animal selected in Skin Screening and care records; it does not change or retrain the image model. Species-specific model performance has not been verified.</p>
+<div id="careGuideStatus" class="guide-category-status" role="status" aria-live="polite"></div>
+<div id="careGuideCards" class="care-guide-cards"></div>
+</section>
+<div id="careNoScreening" class="care-no-screening" hidden>
+<h2>No AI screening result is selected</h2>
+<p>Choose a guide above to read its educational information. No model prediction or score is assumed.</p>
+</div>
+<section id="beforeStartTreatment" class="care-journey treatment-card" aria-labelledby="careJourneyTitle" hidden>
+<header class="care-journey-heading">
+<div><p class="eyebrow">UNDERSTAND FIRST • CARE SAFELY</p><h2 id="careJourneyTitle">Before You Start Treatment</h2><p>Review this visible-pattern guide, safe initial steps, and when to contact a veterinarian before starting any care.</p></div>
+<span class="treatment-symbol" aria-hidden="true">♡</span>
+</header>
+<div class="care-detail-heading"><span id="careSpeciesLabel" class="care-species-pill"></span><button id="backToCareGuides" class="treatment-button treatment-button-quiet" type="button">Back to all guides</button></div>
+<p class="care-medical-notice">DermaPaw AI provides image-based screening and educational skin-care information for dogs and cats. Screening results are not a confirmed veterinary diagnosis. Similar symptoms can have different causes and may require professional examination or testing. Consult a licensed veterinarian for diagnosis and treatment. Do not start, stop, or change medication based only on an AI result.</p>
+<ol class="care-process" aria-label="Care process">
+<li class="is-complete"><span>1</span>Screen the skin</li><li class="is-current"><span>2</span>Understand the result</li><li><span>3</span>Check initial care and safety</li><li><span>4</span>Review possible veterinary options</li><li><span>5</span>Follow the appropriate care guide</li><li><span>6</span>Track progress</li><li><span>7</span>Review changes and seek help</li>
+</ol>
+<div id="careOverviewCard" class="care-overview-card care-info-card"><h3>Overview</h3><p id="careGuideOverview"></p></div>
+<div class="care-guide-actions">
+<button id="readCareInstructions" class="treatment-button treatment-button-secondary" type="button">Read Care Instructions</button>
+<button id="viewCareOptions" class="treatment-button treatment-button-quiet" type="button">View Possible Treatment Options</button>
+<a class="treatment-button treatment-button-quiet" href="#treatment">Track Care Progress</a>
+</div>
+<div id="careResultBanner" class="care-result-banner" hidden>
+<div><small>ACTUAL MODEL TOP-PREDICTED VISIBLE SKIN PATTERN</small><h3 id="careResultCategory">—</h3><p id="careOriginalClass"></p><p id="careResultScore"></p></div>
+<p id="careResultExplanation"></p>
+</div>
+<div id="careScoreCard" class="care-score-card" hidden><h3>Actual model classes and scores</h3><p>Scores are outputs of this image classifier, not confirmed disease probabilities. They are not rescaled.</p><div id="careScoreList" class="care-score-list"></div></div>
+<div class="care-info-grid">
+<details class="care-info-card"><summary>Possible causes</summary><p id="carePossibleCauses"></p></details>
+<details class="care-info-card"><summary>General home-care guidance</summary><p id="careHomeCare"></p><h3>Before you start</h3><ul id="careFirstActions"></ul></details>
+<details class="care-info-card care-warning-card"><summary>What to avoid</summary><ul id="careAvoid"></ul></details>
+<details class="care-info-card"><summary>Warning signs and when to consult a veterinarian</summary><p id="careWhenVet"></p></details>
+</div>
+<details id="careOptionsDetails" class="care-info-card care-options-card"><summary>Possible veterinary treatment options</summary>
+<p id="careVetOptions"></p>
+<div id="careReferences" class="care-references"></div>
+<button id="openStepByStepGuideCard" class="treatment-button treatment-button-secondary" type="button" disabled>View Step-by-Step Care Guide</button>
+</details>
+<section id="careSafetyCheck" class="care-safety-check" aria-labelledby="safetyCheckTitle">
+<h3 id="safetyCheckTitle">Safety check before continuing</h3>
+<fieldset>
+<legend>Has a veterinarian already examined your pet for this skin problem?</legend>
+<label><input type="radio" name="vetAssessment" value="instructions"> Yes, and I have veterinary instructions.</label>
+<label><input type="radio" name="vetAssessment" value="not-consulted"> No, I have not consulted a veterinarian yet.</label>
+<label><input type="radio" name="vetAssessment" value="worsening"> My pet's condition is getting worse.</label>
+</fieldset>
+<div id="careSafetyResponse" class="care-safety-response" role="status" aria-live="polite">Choose an option to see the relevant safety guidance. You can still read all educational information above.</div>
+<div id="vetInstructionsPanel" hidden>
+<label for="vetInstructions" class="field-label">Record the instructions provided by your veterinarian<textarea id="vetInstructions" class="treatment-input" maxlength="1000" rows="3" placeholder="Enter the plan exactly as provided; this tool will not alter it."></textarea></label>
+<button id="saveVetInstructions" class="treatment-button treatment-button-secondary" type="button">Save veterinary instructions</button>
+</div>
+<fieldset class="urgent-signs">
+<legend>Does your pet have any urgent warning signs?</legend>
+<label><input type="checkbox" name="urgentSign" value="severe-pain"> Severe pain</label>
+<label><input type="checkbox" name="urgentSign" value="spreading-swelling"> Rapidly spreading swelling</label>
+<label><input type="checkbox" name="urgentSign" value="significant-bleeding"> Significant bleeding</label>
+<label><input type="checkbox" name="urgentSign" value="rapid-deterioration"> Rapidly deteriorating condition</label>
+</fieldset>
+<p id="urgentCareNotice" class="care-urgent-notice" role="alert" hidden>These signs need urgent veterinary attention. Contact an emergency or licensed veterinarian now; do not delay for a home-care checklist.</p>
+</section>
+<div id="worseningCareNotice" class="care-worsening-notice" role="alert" hidden>Your pet's condition is getting worse. Contact a veterinarian for reassessment rather than starting a different or stronger treatment based on this image result.</div>
+<div class="care-ready-row">
+<div><h3>Ready to continue?</h3><p id="careContinueDescription">Select a safety-check option to open the general educational care guide.</p></div>
+<button id="openStepByStepGuide" class="treatment-button treatment-button-primary" type="button" aria-expanded="false" aria-controls="stepByStepCareGuide" disabled>Continue to Care Guide</button>
+</div>
+<section id="stepByStepCareGuide" class="step-care-guide" aria-labelledby="stepCareTitle" hidden>
+<div class="care-guide-title"><div><small>STEP 5 • SITUATION-SPECIFIC GUIDE</small><h2 id="stepCareTitle">Step-by-Step Care Guide</h2></div><span id="careSpeciesLabel" class="care-species-pill"></span></div>
+<p id="careGuidePurpose"></p>
+<div class="care-guide-details">
+<article><h3>Supplies</h3><ul id="careGuideSupplies"></ul></article>
+<article><h3>Safety precautions</h3><ul id="careGuidePrecautions"></ul></article>
+<article><h3>What to avoid</h3><ul id="careGuideAvoid"></ul></article>
+<article><h3>Changes to monitor</h3><ul id="careGuideMonitor"></ul></article>
+</div>
+<h3 id="careChecklistHeading" class="care-checklist-heading">Care and observation checklist</h3>
+<p id="careChecklistHelper" class="treatment-helper">These are low-risk observation steps, not treatment instructions. Completing this list does not mean your pet has recovered.</p>
+<div id="careProgress" class="care-progress" aria-live="polite"><span id="careProgressText">0 of 0 steps completed</span><div id="careProgressTrack" class="care-progress-track" role="progressbar" aria-label="Care checklist progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="careProgressFill"></div></div></div>
+<ol id="careChecklist" class="care-checklist"></ol>
+<div id="careStepNavigation" class="care-step-navigation" hidden><button id="previousCareStep" class="treatment-button treatment-button-quiet" type="button">Previous Step</button><span id="careStepPosition" aria-live="polite"></span><button id="nextCareStep" class="treatment-button treatment-button-secondary" type="button">Next Step</button></div>
+<p id="careSaveStatus" class="care-save-status" role="status" aria-live="polite"></p>
+<div id="careSessionControls" class="care-session-controls">
+<button id="newCareSession" class="treatment-button treatment-button-quiet" type="button">Start a New Care Session</button>
+<span id="careSessionDate" class="care-session-date"></span>
+</div>
+<form id="careObservationForm" class="care-observation-form">
+<label for="careObservationNote" class="field-label">Add an observation or care note<textarea id="careObservationNote" class="treatment-input" maxlength="1000" rows="2" placeholder="Record visible changes or completed care notes"></textarea></label>
+<button class="treatment-button treatment-button-secondary" type="submit">Save Observation</button>
+</form>
+<h4 class="care-history-heading">Care session history</h4>
+<ol id="careSessionHistory" class="care-session-history"></ol>
+<ul id="careObservationHistory" class="care-observation-history"></ul>
+<p class="care-local-storage-note">Safety choices, veterinarian notes, and checklist progress are saved only in this browser's localStorage on this device. They are not uploaded or backed up.</p>
+<div class="care-next-actions">
+<div><h3>When to contact a veterinarian</h3><p id="careGuideVetContact"></p></div>
+<a class="treatment-button treatment-button-secondary" href="#treatment">Track Progress &amp; Veterinary Instructions</a>
+</div>
+<p class="care-disclaimer">This guide is educational and based only on the model's visible-pattern category. It does not diagnose, prescribe, or replace veterinary examination.</p>
+</section>
+</section>
+<div class="disclaimer">
+<strong>Urgent safety:</strong> Severe pain, rapidly worsening skin damage, significant bleeding, spreading swelling, or another serious or rapidly deteriorating condition needs prompt veterinary attention. Seek urgent veterinary care for severe or rapidly deteriorating symptoms.</div>
+<footer class="page-footer">© 2026 DermaPaw AI | EJOS <span>Built for responsible pet-care learning</span>
+</footer>
+</section>
+<section class="page-view treatment-view" id="treatment" aria-labelledby="treatment-title" aria-hidden="true" hidden>
+<header class="treatment-page-heading">
+<p class="eyebrow">VETERINARIAN-GUIDED TRACKING</p>
+<h1 id="treatment-title">Treatment Progress &amp; Recovery Outlook</h1>
+<p>Record your veterinarian's treatment plan, track scheduled treatments, and monitor visible changes in your pet's skin condition.</p>
+</header>
+<section class="treatment-section" aria-label="Treatment progress and recovery outlook">
+<header class="treatment-heading">
+<div>
+<h2>Track treatment and visible changes</h2>
+<p>Enter only the plan given by your veterinarian. This tracker does not recommend medicine or change treatment.</p>
+</div>
+</header>
+<p id="treatmentNotice" class="treatment-notice" role="alert" hidden></p>
+<section class="treatment-card animal-dashboard" aria-labelledby="animalDashboardTitle">
+<div class="treatment-card-heading">
+<div><small>SELECTED ANIMAL</small><h3 id="animalDashboardTitle">Animal Progress Dashboard</h3></div>
+<span class="treatment-symbol" aria-hidden="true">🐾</span>
+</div>
+<div class="saved-plan-row dashboard-record-row">
+<label class="field-label" for="savedPlanSelect">Choose a saved animal record<select id="savedPlanSelect" class="treatment-input"><option value="">Create a pet progress record</option></select></label>
+<button id="newTreatmentButton" class="treatment-button treatment-button-quiet" type="button">Add an animal</button>
+</div>
+<p class="treatment-helper">You can create a progress record and add baseline observations before a veterinarian has prescribed treatment.</p>
+<div class="dashboard-grid">
+<div class="dashboard-identity"><strong id="dashboardPetName">No animal selected</strong><span id="dashboardSpecies">Create a pet progress record to get started.</span><span id="dashboardScreeningDate">Initial screening: Not recorded</span><span id="dashboardTreatmentStart">Treatment start: Not recorded</span><span id="dashboardFollowUp">Veterinary follow-up: Not recorded</span></div>
+<div class="dashboard-photo"><span>Initial skin photo</span><img id="dashboardInitialPhoto" alt="Initial pet skin progress photo" hidden><small id="dashboardInitialPhotoDate">No baseline photo recorded</small></div>
+<div class="dashboard-photo"><span>Latest progress photo</span><img id="dashboardLatestPhoto" alt="Latest pet skin progress photo" hidden><small id="dashboardLatestPhotoDate">No progress photo recorded</small></div>
+<div class="dashboard-observation"><span>Latest predicted visible pattern</span><strong id="dashboardPattern">Not available</strong><span>Owner-recorded progress status</span><strong id="dashboardProgressStatus">Insufficient information to assess visible progress reliably.</strong><span>Latest notes</span><p id="dashboardNotes">No observations recorded.</p></div>
+</div>
+<form id="reminderForm" class="inline-form dashboard-reminder">
+<label class="field-label" for="nextPhotoReminder">Next progress photo reminder<input id="nextPhotoReminder" class="treatment-input" type="datetime-local"></label>
+<button class="treatment-button treatment-button-secondary" type="submit">Save reminder</button>
+</form>
+<h4 class="list-heading">Upcoming reminders</h4>
+<ul id="reminderList" class="record-list"><li class="record-empty">No upcoming reminders recorded.</li></ul>
+</section>
+<div class="treatment-columns">
+<form id="treatmentForm" class="treatment-card">
+<div class="treatment-card-heading">
+<div><small>OPTIONAL VETERINARIAN TREATMENT RECORD</small><h3>Veterinarian-provided plan</h3></div>
+<span class="treatment-symbol" aria-hidden="true">＋</span>
+</div>
+<div class="treatment-form-grid">
+<label class="field-label" for="treatmentPetName">Pet name or identifier<input id="treatmentPetName" class="treatment-input" name="petName" maxlength="80" required></label>
+<label class="field-label" for="treatmentSpecies">Animal type<select id="treatmentSpecies" class="treatment-input" name="species" required><option value="cat">Cat</option><option value="dog">Dog</option></select></label>
+<label class="field-label field-span" for="treatmentCondition">Condition assessed by a veterinarian<input id="treatmentCondition" class="treatment-input" name="condition" maxlength="120" placeholder="Optional if not yet assessed"></label>
+<label class="field-label field-span" for="treatmentMedicine">Prescribed medicine or ointment<input id="treatmentMedicine" class="treatment-input" name="medicine" maxlength="160" placeholder="Enter only what your veterinarian prescribed"></label>
+<label class="field-label" for="treatmentStartDate">Treatment start date<input id="treatmentStartDate" class="treatment-input" name="startDate" type="date"></label>
+<label class="field-label" for="treatmentFrequency">Prescribed frequency<input id="treatmentFrequency" class="treatment-input" name="frequency" maxlength="100" placeholder="As written by your veterinarian"></label>
+<label class="field-label" for="treatmentDuration">Prescribed duration (days)<input id="treatmentDuration" class="treatment-input" name="durationDays" type="number" min="1" max="3650" step="1"></label>
+<label class="field-label" for="treatmentFollowUp">Next veterinary follow-up<input id="treatmentFollowUp" class="treatment-input" name="followUpDate" type="date"></label>
+</div>
+<p class="treatment-helper">Treatment details are optional for progress-only records. Enter only a diagnosis and plan provided by your veterinarian. The planned end date is not an estimated recovery date.</p>
+<p id="plannedEndDate" class="planned-end">Planned end date: enter a start date and duration.</p>
+<div class="plan-actions">
+<button id="editTreatmentButton" class="treatment-button treatment-button-quiet" type="button" hidden>Edit existing record</button>
+<button id="deleteTreatmentButton" class="treatment-button treatment-button-danger" type="button" hidden>Delete record</button>
+<button id="saveTreatmentButton" class="treatment-button treatment-button-primary" type="submit">Save treatment details</button>
+</div>
+</form>
+<section class="treatment-card" aria-labelledby="adherence-title">
+<div class="treatment-card-heading">
+<div><small>OWNER-RECORDED LOG</small><h3 id="adherence-title">Treatment adherence</h3></div>
+<span class="treatment-symbol" aria-hidden="true">✓</span>
+</div>
+<p id="selectedPlanSummary" class="treatment-helper">Create or select a pet treatment record to begin.</p>
+<div id="adherenceSummary" class="adherence-stats" aria-live="polite"></div>
+<form id="eventForm" class="inline-form">
+<label class="field-label" for="eventDueAt">Scheduled treatment date and time<input id="eventDueAt" class="treatment-input" type="datetime-local" required></label>
+<button class="treatment-button treatment-button-secondary" type="submit">Add scheduled event</button>
+</form>
+<p class="treatment-helper">Enter event times from the veterinarian's instructions. Pending events including future events are excluded from the adherence denominator. A due event counts only after it is recorded completed or missed.</p>
+<h4 class="list-heading">Daily treatment history</h4>
+<ul id="treatmentHistory" class="record-list"><li class="record-empty">No scheduled treatment events recorded.</li></ul>
+</section>
+</div>
+<div class="treatment-columns treatment-columns-lower">
+<section class="treatment-card" aria-labelledby="journal-title">
+<div class="treatment-card-heading">
+<div><small>OWNER OBSERVATIONS</small><h3 id="journal-title">Skin progress journal</h3></div>
+<span class="treatment-symbol" aria-hidden="true">◷</span>
+</div>
+<p class="treatment-helper">These observations and photos are not a veterinary diagnosis. Record only what you observe; do not use them to alter prescribed care.</p>
+<form id="journalForm">
+<div class="treatment-form-grid">
+<label class="field-label" for="observationDate">Date of observation<input id="observationDate" class="treatment-input" type="date" required></label>
+<label class="field-label" for="progressStatusSelect">Your progress assessment<select id="progressStatusSelect" class="treatment-input"><option value="insufficient">Insufficient Information</option><option value="improving">Improving</option><option value="unchanged">No Significant Visible Change</option><option value="worsening">Worsening</option><option value="needs-vet">Needs Veterinary Assessment</option></select></label>
+<label class="field-label" for="rednessStatus">Redness / irritation<select id="rednessStatus" class="treatment-input"><option value="not-assessed">Not assessed</option><option value="improved">Improved</option><option value="unchanged">Unchanged</option><option value="worse">Worse</option></select></label>
+<label class="field-label" for="hairLossStatus">Hair loss<select id="hairLossStatus" class="treatment-input"><option value="not-assessed">Not assessed</option><option value="improved">Improved</option><option value="unchanged">Unchanged</option><option value="worse">Worse</option></select></label>
+<label class="field-label" for="scalingStatus">Scabs / scaling<select id="scalingStatus" class="treatment-input"><option value="not-assessed">Not assessed</option><option value="improved">Improved</option><option value="unchanged">Unchanged</option><option value="worse">Worse</option></select></label>
+<label class="field-label field-span" for="itchingNotes">Itching or discomfort observations<textarea id="itchingNotes" class="treatment-input" rows="2" maxlength="500"></textarea></label>
+<label class="field-label field-span" for="progressNotes">Optional progress notes<textarea id="progressNotes" class="treatment-input" rows="3" maxlength="1000"></textarea></label>
+<label class="field-label field-span" for="progressPhoto">Optional follow-up photo<input id="progressPhoto" class="treatment-input" type="file" accept="image/jpeg,image/png,image/webp"><span class="input-hint">JPG, PNG, or WEBP, up to 512 KB. Kept only in this browser's local record.</span></label>
+</div>
+<button class="treatment-button treatment-button-secondary" type="submit">Save observation</button>
+</form>
+<ul id="progressHistory" class="record-list"><li class="record-empty">No progress observations recorded.</li></ul>
+</section>
+<section class="treatment-card comparison-card" aria-labelledby="comparison-title">
+<div class="treatment-card-heading"><div><small>OWNER-SELECTED PHOTOS</small><h3 id="comparison-title">Before-and-after comparison</h3></div><span class="treatment-symbol" aria-hidden="true">↔</span></div>
+<p class="treatment-helper">Lighting, camera angle, distance, fur position, and image quality can change how skin looks and affect model scores. A lower score does not prove recovery.</p>
+<div class="comparison-selectors">
+<label class="field-label" for="comparisonFirst">Earlier photo<select id="comparisonFirst" class="treatment-input"><option value="">No photos available</option></select></label>
+<label class="field-label" for="comparisonSecond">Later photo<select id="comparisonSecond" class="treatment-input"><option value="">No photos available</option></select></label>
+</div>
+<div id="comparisonEmpty" class="record-empty">Add progress photos to compare two entries.</div>
+<div id="comparisonImages" class="comparison-images" hidden>
+<article><h4 id="comparisonFirstDate">Earlier photo</h4><img id="comparisonFirstImage" alt="Earlier pet skin photo"><p id="comparisonFirstNotes"></p><p id="comparisonFirstScores"></p></article>
+<article><h4 id="comparisonSecondDate">Later photo</h4><img id="comparisonSecondImage" alt="Later pet skin photo"><p id="comparisonSecondNotes"></p><p id="comparisonSecondScores"></p></article>
+</div>
+</section>
+<section class="treatment-card outlook-card" aria-labelledby="outlook-title">
+<div class="treatment-card-heading">
+<div><small>TRANSPARENT, RULES-BASED OUTLOOK</small><h3 id="outlook-title">Recovery outlook</h3></div>
+<span class="treatment-symbol treatment-symbol-coral" aria-hidden="true">!</span>
+</div>
+<p class="treatment-helper">Initial improvement, complete resolution, prescribed duration, recorded adherence, and observed progress are different measures. This app does not use a validated recovery-prediction model.</p>
+<div class="outlook-summary">
+<div><span>Latest progress</span><strong id="latestProgress">Insufficient information to assess visible progress reliably.</strong></div>
+<div><span>Expected initial improvement</span><strong id="initialImprovement">No verified range available</strong></div>
+<div><span>Expected complete resolution</span><strong id="completeResolution">No verified range available</strong></div>
+<div><span>Specific estimated recovery date</span><strong id="recoveryDate">Unavailable</strong></div>
+<div><span>Evidence status</span><strong id="evidenceStatus">Insufficient evidence</strong></div>
+<div><span>Veterinary follow-up</span><strong id="followUpSummary">Use the date provided by your veterinarian.</strong></div>
+</div>
+<div class="scenario-grid">
+<article class="scenario-card">
+<h4>Case 1 — Treatment followed as prescribed</h4>
+<p id="adherentScenario">Save a treatment record to review its recorded adherence and evidence status.</p>
+<p class="outlook-limit">A reliable specific recovery-day estimate is unavailable for this case. No evidence-matched range is currently available.</p>
+</article>
+<article class="scenario-card scenario-card-missed">
+<h4>Case 2 — One or more treatments missed</h4>
+<p id="missedScenario">No treatment record selected.</p>
+<p class="outlook-limit">Insufficient evidence to calculate how missed treatment may affect recovery time. Follow your veterinarian's instructions about missed applications; do not double or change treatment unless they advise you to.</p>
+</article>
+</div>
+<div class="evidence-panel">
+<h4>Research basis and limitations</h4>
+<p>Sources below are condition-specific references, not recovery guarantees. Their published information does not currently justify a numerical recovery-day estimate or a validated missed-treatment adjustment in this app.</p>
+<div id="evidenceSources" class="evidence-sources"></div>
+</div>
+<p class="treatment-safety-notice">This feature helps you record treatment adherence and monitor visible changes. Recovery estimates depend on the pet's condition, prescribed treatment, and available veterinary evidence. This tool does not diagnose skin diseases, prescribe medication, or replace advice from a licensed veterinarian.</p>
+<p class="urgent-care">Contact a veterinarian promptly if the condition worsens, becomes painful, bleeds, develops swelling or discharge, or your pet appears unwell.</p>
+</section>
+</div>
+<p class="local-storage-note">Treatment plans, event logs, observations, and optional photos are stored in this browser's localStorage on this device only. They are not backed up or synchronized.</p>
+</section>
+</section>
+<section class="page-view guide-section" id="guide" aria-labelledby="guide-title" aria-hidden="true" hidden>
+<header class="guide-heading">
+<div>
+<p class="eyebrow">A SIMPLE, RESPONSIBLE PROCESS</p>
+<h2 id="guide-title">How it works</h2>
+<p>From a pet photo to safe follow-up: see how each part of DermaPaw AI fits together.</p>
+</div>
+<a class="guide-button guide-button-primary" href="#screening">Start screening <span aria-hidden="true">→</span></a>
+</header>
+<section class="workflow-panel" aria-labelledby="workflow-title">
+<div class="workflow-heading"><div><p class="eyebrow">THE COMPLETE JOURNEY</p><h3 id="workflow-title">Your screening-to-follow-up workflow</h3></div><a href="#care-guide">Care &amp; Treatment Guide <span aria-hidden="true">→</span></a></div>
+<ol class="workflow-rail">
+<li><span aria-hidden="true">🐾</span><strong>Choose pet</strong></li>
+<li><span aria-hidden="true">↑</span><strong>Upload or capture</strong></li>
+<li><span aria-hidden="true">✧</span><strong>AI screening</strong></li>
+<li><span aria-hidden="true">▤</span><strong>Review results</strong></li>
+<li><span aria-hidden="true">♡</span><strong>Before treatment</strong></li>
+<li><span aria-hidden="true">✓</span><strong>Care guide</strong></li>
+<li><span aria-hidden="true">↗</span><strong>Track progress</strong></li>
+<li><span aria-hidden="true">＋</span><strong>Veterinary follow-up</strong></li>
+</ol>
+</section>
+<div class="steps-grid">
+<article class="guide-step">
+<div class="step-top"><span class="step-number">01</span><span class="step-icon" aria-hidden="true">🐾</span></div>
+<h3>Choose your pet</h3>
+<p>Select <strong>Cat</strong> or <strong>Dog</strong> in Skin Screening. DermaPaw AI is intended to screen visible skin patterns in these two animals. The current model metadata does not establish whether its training data included both species or verify species-specific performance.</p>
+<a class="guide-inline-link" href="#screening">Choose a pet <span aria-hidden="true">→</span></a>
+</article>
+<article class="guide-step">
+<div class="step-top"><span class="step-number">02</span><span class="step-icon" aria-hidden="true">↑</span></div>
+<h3>Upload or capture a skin image</h3>
+<p>Choose a device photo in <strong>JPG, JPEG, PNG, or WEBP</strong> format (up to 10 MB), or open Live Camera if available. Preview the image, then remove or replace it before screening. Use a clear, well-lit close-up focused on the visible skin area.</p>
+<p class="guide-detail">Unsupported files, files over the size limit, and images that cannot be opened show an error in the screening panel. Analyze stays disabled until a valid image and a ready model are available; choose a supported photo to continue. Camera access requires a supported browser, HTTPS or localhost, and your permission; denial or unavailable hardware is reported in the camera panel. Upload remains an alternative.</p>
+<a class="guide-inline-link" href="#screening">Go to photo upload <span aria-hidden="true">→</span></a>
+</article>
+<article class="guide-step">
+<div class="step-top"><span class="step-number">03</span><span class="step-icon" aria-hidden="true">✧</span></div>
+<h3>Analyze the image</h3>
+<p>The image is analyzed in this browser by the connected Teachable Machine image-classification model. The page displays returned model classes and scores only after a successful prediction. If the model, metadata, or prediction is unavailable, an error is shown instead.</p>
+<p class="guide-detail">Scores are model classification confidence scores for image patterns. They are not confirmed disease probabilities or a veterinary diagnosis.</p>
+<span id="guideModelStatus" class="model-status" role="status" data-state="loading">Loading the trained image model…</span>
+</article>
+<article class="guide-step">
+<div class="step-top"><span class="step-number">04</span><span class="step-icon" aria-hidden="true">▤</span></div>
+<h3>Understand the screening results</h3>
+<p>The leading class is the model's strongest visible-pattern match for that image; the score breakdown shows the actual outputs for all classes. Several skin problems can look similar in a photo.</p>
+<p class="guide-detail"><strong>A high score does not prove disease.</strong> “No Obvious Skin Concern” does not guarantee health. Examination or diagnostic testing may be needed to identify the cause.</p>
+<div id="guideCategoryStatus" class="guide-category-status" role="status">Waiting for model class names from its metadata.</div>
+<ul id="guideCategoryList" class="category-list" aria-label="Actual classes in the connected model"></ul>
+<div id="guideActualResults" class="guide-actual-results" aria-live="polite">
+<p id="guideResultsMessage">No screening result is available yet. Run a screening to see actual model predictions here.</p>
+<div id="guideActualScoreList" class="guide-actual-score-list"></div>
+</div>
+<a class="guide-inline-link" href="#care-guide">View Care &amp; Treatment Guide <span aria-hidden="true">→</span></a>
+</article>
+<article class="guide-step">
+<div class="step-top"><span class="step-number">05</span><span class="step-icon" aria-hidden="true">♡</span></div>
+<h3>Read Before You Start Treatment</h3>
+<p>On the Care &amp; Treatment Guide page, review what the visible pattern may mean, possible causes, low-risk initial precautions, actions to avoid, and whether veterinary assessment is advised.</p>
+<p class="guide-detail">The page includes warning signs and educational examples of what a veterinarian may consider after examination. These are not prescriptions; do not start medicine based only on an AI result. Severe pain, significant bleeding, rapidly spreading swelling, or rapid deterioration needs urgent veterinary attention.</p>
+<a class="guide-inline-link" href="#care-guide">Review care and safety guidance <span aria-hidden="true">→</span></a>
+</article>
+<article class="guide-step">
+<div class="step-top"><span class="step-number">06</span><span class="step-icon" aria-hidden="true">✓</span></div>
+<h3>Follow the step-by-step care guide</h3>
+<p>After the safety check, open the guide for the selected visible-pattern category. Read its purpose, supplies (if applicable), precautions, what to avoid, changes to monitor, and when to contact a veterinarian.</p>
+<p class="guide-detail">The checklist is for applicable general observation and care steps; mark steps to update its progress indicator. Follow prescribed treatment exactly as your veterinarian instructed. The checklist does not set a medicine, dose, or duration and completing it does not mean recovery.</p>
+<a class="guide-inline-link" href="#care-guide">Open the care guide <span aria-hidden="true">→</span></a>
+</article>
+<article class="guide-step">
+<div class="step-top"><span class="step-number">07</span><span class="step-icon" aria-hidden="true">↗</span></div>
+<h3>Track treatment progress</h3>
+<p>In Treatment Progress, select or create the correct pet record. Record veterinarian-provided treatment details, dated observations and care events, and upload progress photos where supported. Compare earlier and later saved photos and record whether changes appear improved, unchanged, or worse.</p>
+<p class="guide-detail">Records are stored in this browser on this device. A screening photo can be handed off to a matching local pet record; record veterinarian-provided plan details and the next follow-up date, add dated progress observations and treatment events, and upload photos to compare later. The Care &amp; Treatment Guide also lets you save instructions from your veterinarian. Observations and photo comparisons do not confirm healing.</p>
+<a class="guide-inline-link" href="#treatment">Open Treatment Progress <span aria-hidden="true">→</span></a>
+</article>
+<article class="guide-step">
+<div class="step-top"><span class="step-number">08</span><span class="step-icon" aria-hidden="true">＋</span></div>
+<h3>Review changes and seek veterinary advice</h3>
+<p>Contact a veterinarian if the problem worsens, redness, swelling, wounds or discharge increase, your pet has significant pain, or the concern persists or does not improve as expected. Seek urgent veterinary attention for severe or rapidly worsening symptoms.</p>
+<p class="guide-detail">Use your records to describe changes to the veterinarian. Do not use a score, photo comparison, or completed checklist as a reason to delay reassessment or change prescribed care.</p>
+<a class="guide-inline-link" href="#treatment">Review pet progress <span aria-hidden="true">→</span></a>
+</article>
+</div>
+<section class="guide-capabilities" aria-labelledby="guide-capabilities-title">
+<header><p class="eyebrow">SET THE RIGHT EXPECTATIONS</p><h3 id="guide-capabilities-title">What DermaPaw AI can and cannot do</h3></header>
+<div class="guide-capability-grid">
+<article><h4>What it can do</h4><ul>
+<li>Accept pet skin images for screening and show actual model classification results when the model is connected and working.</li>
+<li>Explain possible meanings of visible patterns and provide general educational care guidance.</li>
+<li>Describe possible veterinary approaches as education, not as automatic treatment recommendations.</li>
+<li>Guide users through applicable observation steps and record care notes, observations, and progress photos in local browser storage.</li>
+<li>Help owners review visible changes using saved notes and photo comparisons.</li>
+</ul></article>
+<article class="guide-cannot"><h4>What it cannot do</h4><ul>
+<li>Confirm a disease or replace veterinary examination or testing.</li>
+<li>Guarantee a cure or determine prescription medicine, dose, or duration from an image score.</li>
+<li>Guarantee a pet is healthy when no obvious skin concern is detected.</li>
+<li>Reliably predict a recovery date or treat checklist completion as recovery.</li>
+</ul></article>
+</div>
+</section>
+<aside class="guide-safety-notice" aria-labelledby="guide-safety-title">
+<span class="step-icon" aria-hidden="true">!</span>
+<div><h3 id="guide-safety-title">Important veterinary safety notice</h3><p>DermaPaw AI provides image-based skin screening and educational care information for dogs and cats. Screening results are not a confirmed veterinary diagnosis. Similar skin symptoms can have different causes and may require professional examination or testing. Consult a licensed veterinarian for diagnosis and treatment. Do not start, stop, or change medication based solely on an AI result.</p>
+<a class="guide-inline-link" href="#care-guide">Read the Care &amp; Treatment Guide <span aria-hidden="true">→</span></a></div>
+</aside>
+<div class="guide-actions">
+<div><p>Ready to begin, or want to revisit another part of the process?</p><nav class="guide-page-links" aria-label="Related DermaPaw pages">
+<a class="guide-button guide-button-primary" href="#screening">Skin Screening <span aria-hidden="true">→</span></a>
+<a class="guide-button guide-button-secondary" href="#care-guide">Care &amp; Treatment Guide <span aria-hidden="true">→</span></a>
+<a class="guide-button guide-button-secondary" href="#treatment">Treatment Progress <span aria-hidden="true">→</span></a>
+</nav></div>
+</div>
+</section>
+</main>
+<script src="script.js">
+</script>
+<script type="module" src="treatment.js"></script>
+</body>
+</html>
