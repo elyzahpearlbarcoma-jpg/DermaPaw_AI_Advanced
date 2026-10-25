@@ -15,15 +15,15 @@
 </head>
 <body>
 <button id="menuOverlay" class="menu-overlay" type="button" aria-label="Close navigation menu" tabindex="-1" hidden></button>
-<aside class="sidebar" id="sidebar">
-<div class="sidebar-header">
-<button id="menuToggle" class="menu-toggle" type="button" aria-label="Collapse sidebar" aria-controls="sidebar" aria-expanded="true">☰</button>
+<header class="site-header">
+<button id="menuToggle" class="menu-toggle" type="button" aria-label="Open navigation menu" aria-controls="sidebar" aria-expanded="false">☰</button>
 <a class="brand" href="#">
 <img class="brand-logo" src="assets/images/dermapaw-logo.png" alt="DermaPaw AI logo">
 <span>DermaPaw<small>AI SCREENING</small>
 </span>
 </a>
-</div>
+</header>
+<aside class="sidebar" id="sidebar" aria-hidden="true">
 <p class="nav-label">WORKSPACE</p>
 <a class="nav" href="#guide" aria-label="How it works"><span class="nav-icon" aria-hidden="true">◈</span><span class="nav-text">How it works</span></a>
 <a class="nav active" href="#screening" aria-label="Skin screening" aria-current="location"><span class="nav-icon" aria-hidden="true">⌕</span><span class="nav-text">Skin screening</span></a>

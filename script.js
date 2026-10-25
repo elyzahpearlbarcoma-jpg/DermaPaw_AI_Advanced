@@ -256,7 +256,6 @@ let careProgress = { version: 2, items: {} };
 let careProgressAvailable = true;
 let activeCareKey = "";
 const petButtons = [...document.querySelectorAll(".pet")];
-const mobileMenuQuery = window.matchMedia("(max-width: 650px)");
 const emptyMessage = elements.emptyState.querySelector("p");
 const uploadNote = $("uploadPrivacyNote");
 const guideModelStatus = $("guideModelStatus");
@@ -265,23 +264,12 @@ const guideCategoryList = $("guideCategoryList");
 const guideResultsMessage = $("guideResultsMessage");
 const guideActualScoreList = $("guideActualScoreList");
 function setMenuOpen(isOpen) {
-	if (mobileMenuQuery.matches) {
-		sidebar.classList.remove("is-collapsed");
-		document.body.classList.remove("sidebar-collapsed");
-		sidebar.classList.toggle("is-mobile-open", isOpen);
-		menuOverlay.hidden = !isOpen;
-		document.body.classList.toggle("sidebar-menu-open", isOpen);
-		menuButton.setAttribute("aria-expanded", String(isOpen));
-		menuButton.setAttribute("aria-label", isOpen ? "Close navigation menu" : "Open navigation menu");
-		return;
-	}
-	sidebar.classList.remove("is-mobile-open");
-	menuOverlay.hidden = true;
-	document.body.classList.remove("sidebar-menu-open");
-	sidebar.classList.toggle("is-collapsed", !isOpen);
-	document.body.classList.toggle("sidebar-collapsed", !isOpen);
+	sidebar.classList.toggle("is-open", isOpen);
+	sidebar.setAttribute("aria-hidden", String(!isOpen));
+	menuOverlay.hidden = !isOpen;
+	document.body.classList.toggle("sidebar-menu-open", isOpen);
 	menuButton.setAttribute("aria-expanded", String(isOpen));
-	menuButton.setAttribute("aria-label", isOpen ? "Collapse sidebar" : "Expand sidebar");
+	menuButton.setAttribute("aria-label", isOpen ? "Close navigation menu" : "Open navigation menu");
 }
 
 menuButton.addEventListener("click", () => {
@@ -289,9 +277,7 @@ menuButton.addEventListener("click", () => {
 });
 menuOverlay.addEventListener("click", () => setMenuOpen(false));
 sidebar.querySelectorAll(".nav").forEach(link => {
-	link.addEventListener("click", () => {
-		if (mobileMenuQuery.matches) setMenuOpen(false);
-	});
+	link.addEventListener("click", () => setMenuOpen(false));
 });
 function showView(viewName) {
 	const activeView = views[viewName] ? viewName : "screening";
@@ -323,13 +309,12 @@ function syncViewToLocation() {
 window.addEventListener("hashchange", syncViewToLocation);
 syncViewToLocation();
 document.addEventListener("keydown", event => {
-	if (event.key === "Escape" && mobileMenuQuery.matches && sidebar.classList.contains("is-mobile-open")) {
+	if (event.key === "Escape" && sidebar.classList.contains("is-open")) {
 		setMenuOpen(false);
 		menuButton.focus();
 	}
 });
-mobileMenuQuery.addEventListener("change", event => setMenuOpen(!event.matches));
-setMenuOpen(!mobileMenuQuery.matches);
+setMenuOpen(false);
 
 elements.dropzone.tabIndex = 0;
 elements.dropzone.setAttribute("role", "button");

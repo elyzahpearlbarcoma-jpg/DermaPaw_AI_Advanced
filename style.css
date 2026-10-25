@@ -13,7 +13,16 @@ body{margin:0;
 background:var(--paper);
 color:var(--ink);
 font:14px 'DM Sans',sans-serif;
-display:flex}
+}
+.site-header{height:68px;
+position:sticky;
+top:0;
+z-index:1002;
+display:flex;
+align-items:center;
+gap:12px;
+padding:0 clamp(13px,4vw,55px);
+background:var(--deep)}
 .menu-toggle{position:relative;
 z-index:1002;
 flex:0 0 40px;
@@ -34,32 +43,31 @@ border-color:var(--mint)}
 .menu-toggle:focus-visible{outline:3px solid var(--coral);
 outline-offset:3px}
 .menu-overlay{position:fixed;
-inset:0;
+inset:68px 0 0;
 z-index:1000;
 border:0;
 background:#102d2c99;
 cursor:pointer}
 .menu-overlay[hidden]{display:none}
 .sidebar-menu-open{overflow:hidden}
-.sidebar-header{display:flex;
-align-items:center;
-justify-content:space-between;
-gap:8px;
-min-width:0;
-margin-bottom:22px}
-.sidebar{width:230px;
-background:var(--deep);
-color:#effaf3;
-min-height:100vh;
-height:100vh;
-position:sticky;
-top:0;
-padding:27px 18px;
+.sidebar{position:fixed;
+top:68px;
+left:0;
+width:min(290px,85vw);
+height:calc(100vh - 68px);
+height:calc(100dvh - 68px);
+padding:22px 18px;
 display:flex;
 flex-direction:column;
-flex-shrink:0;
+background:var(--deep);
+color:#effaf3;
 z-index:1001;
-transition:width .28s ease,transform .28s ease,visibility .28s ease}
+transform:translateX(-102%);
+visibility:hidden;
+transition:transform .28s ease,visibility 0s linear .28s}
+.sidebar.is-open{transform:translateX(0);
+visibility:visible;
+transition:transform .28s ease,visibility 0s}
 .brand{display:flex;
 align-items:center;
 gap:10px;
@@ -104,26 +112,13 @@ overflow-wrap:anywhere}
 .nav.active{background:#234b47;
 color:white;
 box-shadow:inset 3px 0 var(--mint)}
-.sidebar.is-collapsed{width:112px;
-padding-right:12px;
-padding-left:12px}
-.sidebar.is-collapsed .brand{flex:0 0 37px;
-justify-content:center;
-gap:0}
-.sidebar.is-collapsed .brand span,.sidebar.is-collapsed .nav-label,.sidebar.is-collapsed .nav-text,.sidebar.is-collapsed footer{display:none}
-.sidebar.is-collapsed .nav{justify-content:center;
-padding-right:0;
-padding-left:0}
-.sidebar.is-collapsed .nav.active{box-shadow:inset 0 -3px var(--mint)}
 .sidebar footer{margin-top:auto;
 font-size:10px;
 color:#72958b;
 padding-top:18px}
-main{width:min(1500px,calc(100% - 230px));
+main{width:min(1500px,100%);
 margin:auto;
-padding:30px clamp(18px,4vw,55px) 22px;
-transition:width .28s ease}
-body.sidebar-collapsed main{width:calc(100% - 112px)}
+padding:30px clamp(18px,4vw,55px) 22px}
 .top{display:flex;
 justify-content:space-between;
 align-items:center;
@@ -986,12 +981,7 @@ color:#9aa9a3;
 font-size:10px;
 padding:18px 2px 0}
 @keyframes dermapaw-spin{to{transform:rotate(360deg)}}
-@media(max-width:1000px){.sidebar{width:210px;
-padding-right:12px;
-padding-left:12px}
-main{width:calc(100% - 210px);
-padding:24px 20px}
-.sidebar-header{gap:6px}
+@media(max-width:1000px){main{padding:24px 20px}
 .grid{grid-template-columns:1fr}
 .steps-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .treatment-columns{grid-template-columns:1fr}
@@ -1000,40 +990,9 @@ padding:24px 20px}
 opacity:.35}
 }
 @media(max-width:650px){body{display:block}
-.sidebar{position:fixed;
-top:0;
-left:0;
-width:min(290px,85vw);
-height:100vh;
-height:100dvh;
-min-height:0;
-padding:22px 18px;
-transform:translateX(-102%);
-visibility:hidden;
-transition:transform .28s ease,visibility 0s linear .28s;
-box-shadow:0 18px 45px #102d2c40}
-.sidebar.is-mobile-open{transform:translateX(0);
-visibility:visible;
-transition:transform .28s ease,visibility 0s}
-.sidebar:not(.is-mobile-open) .menu-toggle{position:fixed;
-top:14px;
-left:calc(102% + 14px);
-right:auto;
+main{width:100%;
 margin:0;
-visibility:visible}
-.sidebar .brand{padding-left:0}
-.sidebar footer{display:none}
-.sidebar.is-collapsed{width:min(290px,85vw)}
-.sidebar.is-collapsed .brand{justify-content:flex-start;
-padding:0}
-.sidebar.is-collapsed .brand span,.sidebar.is-collapsed .nav-label,.sidebar.is-collapsed .nav-text,.sidebar.is-collapsed footer{display:block}
-.sidebar.is-collapsed .nav{justify-content:flex-start;
-padding:13px 12px}
-.sidebar.is-collapsed .nav.active{box-shadow:inset 3px 0 var(--mint)}
-body main{width:100%;
-margin:0;
-padding:68px 13px 20px}
-body.sidebar-collapsed main{width:100%}
+padding:24px 13px 20px}
 .top{align-items:flex-start}
 .pill{font-size:0;
 padding:10px}
