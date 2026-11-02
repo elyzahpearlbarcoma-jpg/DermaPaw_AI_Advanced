@@ -1,5 +1,7 @@
 const MODEL_URL = "https://teachablemachine.withgoogle.com/models/n1XfBcG2q/";
-const OBJECT_CONFIDENCE_THRESHOLD = 0.5;
+const PERSON_THRESHOLD = 0.3;
+const FACE_THRESHOLD = 0.8;
+const PET_THRESHOLD = 0.5;
 const CLASSIFIER_CONFIDENCE_THRESHOLD = 0.7;
 const CLASSIFIER_MARGIN_THRESHOLD = 0.15;
 const MIN_PET_BOX_AREA_RATIO = 0.6;
@@ -166,6 +168,7 @@ const elements = {
 	resultStatus: $("resultStatus"),
 	scoreList: $("scoreList"),
 	screeningPetName: $("screeningPetName"),
+	speciesNotice: $("speciesNotice"),
 	startTreatmentTracking: $("startTreatmentTracking"),
 	openCareJourney: $("openCareJourney"),
 	careJourney: $("beforeStartTreatment"),
@@ -248,12 +251,15 @@ let selectedPet = "cat";
 let selectedFile = null;
 let previewObjectUrl = null;
 let cropPending = false;
+let originalPetCheck = null;
 let model = null;
 let modelPromise = null;
 let modelState = "loading";
 let objectDetector = null;
 let objectDetectorPromise = null;
 let objectDetectorState = "loading";
+let faceDetector = null;
+let faceDetectorPromise = null;
 let modelClassInfo = new Map();
 let selectionRevision = 0;
 let isAnalyzing = false;
@@ -706,11 +712,12 @@ async function handleFile(file) {
 
 	const objectUrl = URL.createObjectURL(file);
 	try {
-		await loadImage(objectUrl);
+		const originalImage = await loadImage(objectUrl);
 		if (revision !== selectionRevision) {
 			URL.revokeObjectURL(objectUrl);
 			return;
 		}
+		originalPetCheck = await validateOriginalPhoto(originalImage);
 		if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
 		previewObjectUrl = objectUrl;
 		selectedFile = file;
@@ -720,12 +727,17 @@ async function handleFile(file) {
 		elements.fileSize.textContent = `${formatFileSize(file.size)} • Ready`;
 		elements.previewWrap.hidden = false;
 		elements.dropzone.hidden = true;
+		elements.speciesNotice.textContent = originalPetCheck.note;
+		elements.speciesNotice.hidden = !originalPetCheck.note;
 		openCropEditor();
 		updateAnalysisReadiness();
 		resetResults();
-	} catch {
+	} catch (error) {
 		URL.revokeObjectURL(objectUrl);
-		showError("This file could not be opened as an image. Try another JPG, PNG, or WEBP photo.");
+		originalPetCheck = null;
+		elements.speciesNotice.textContent = "";
+		elements.speciesNotice.hidden = true;
+		showError(error.message || "This file could not be opened as an image. Try another JPG, PNG, or WEBP photo.");
 	}
 
 }
@@ -733,7 +745,7 @@ async function handleFile(file) {
 function loadImage(source) {
 	return new Promise((resolve, reject) => {
 		const image = new Image();
-		image.onload = resolve;
+		image.onload = () => resolve(image);
 		image.onerror = reject;
 		image.src = source;
 	});
@@ -768,6 +780,8 @@ function drawCropPreview() {
 function skipCrop() {
 	cropPending = false;
 	elements.cropPanel.hidden = true;
+	elements.speciesNotice.textContent = "";
+	elements.speciesNotice.hidden = true;
 	updateAnalysisReadiness();
 }
 
@@ -818,6 +832,7 @@ function clearImage() {
 	if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
 	previewObjectUrl = null;
 	cropPending = false;
+	originalPetCheck = null;
 	selectedFile = null;
 	elements.fileInput.value = "";
 	elements.previewImage.removeAttribute("src");
@@ -1028,27 +1043,72 @@ async function getObjectDetector() {
 	return objectDetector;
 }
 
-function validatePetDetections(detections) {
+async function getFaceDetector() {
+	if (!window.blazeface?.load) {
+		throw new Error("The face detector did not load. Check your internet connection and refresh the page.");
+	}
+	if (!faceDetectorPromise) {
+		faceDetectorPromise = window.blazeface.load();
+		try {
+			faceDetector = await faceDetectorPromise;
+		} catch {
+			faceDetectorPromise = null;
+			throw new Error("The face detector could not be loaded. Check your internet connection and refresh the page.");
+		}
+	} else {
+		faceDetector = await faceDetectorPromise;
+	}
+	if (!faceDetector || typeof faceDetector.estimateFaces !== "function") {
+		faceDetector = null;
+		faceDetectorPromise = null;
+		throw new Error("The face detector loaded without a usable detection function. Refresh the page and try again.");
+	}
+	return faceDetector;
+}
+
+async function validateOriginalPhoto(originalImage) {
+	const [activeObjectDetector, activeFaceDetector] = await Promise.all([
+		getObjectDetector(),
+		getFaceDetector()
+	]);
+	return validatePetDetections(
+		await activeObjectDetector.detect(originalImage),
+		await activeFaceDetector.estimateFaces(originalImage, false),
+		originalImage.naturalWidth,
+		originalImage.naturalHeight
+	);
+}
+
+function validatePetDetections(detections, faces, imageWidth, imageHeight) {
 	if (!Array.isArray(detections)) {
 		throw new Error("The pet detector returned an invalid result. Please try again.");
 	}
 	const confidentDetections = detections.filter(detection =>
-		typeof detection?.score === "number" && detection.score > OBJECT_CONFIDENCE_THRESHOLD
+		typeof detection?.score === "number" && detection.score > PET_THRESHOLD
 	);
-	const detectedLabels = confidentDetections.map(detection => detection.class);
-	const hasCatOrDog = detectedLabels.some(label => label === "cat" || label === "dog");
+	const personDetected = detections.some(detection =>
+		detection?.class === "person" &&
+		typeof detection.score === "number" &&
+		detection.score > PERSON_THRESHOLD
+	);
+	const hasCatOrDog = confidentDetections.some(detection => detection.class === "cat" || detection.class === "dog");
 	if (!hasCatOrDog) {
-		if (detectedLabels.includes("person")) {
+		const faceDetected = Array.isArray(faces) && faces.some(face => {
+			const probability = Array.isArray(face?.probability) ? face.probability[0] : face?.probability;
+			return typeof probability === "number" && probability > FACE_THRESHOLD;
+		});
+		if (personDetected || faceDetected) {
 			throw new Error("Human detected. Please upload a photo of your pet.");
 		}
-		throw new Error("No cat or dog detected. Please upload a clearer photo of your pet.");
+		return { note: "No full pet detected. Results may be less reliable." };
 	}
 	const largestPet = confidentDetections
 		.filter(detection => detection.class === "cat" || detection.class === "dog")
 		.sort((first, second) => boxArea(second) - boxArea(first))[0];
-	if (largestPet && boxArea(largestPet) / (elements.previewImage.naturalWidth * elements.previewImage.naturalHeight) < MIN_PET_BOX_AREA_RATIO) {
+	if (largestPet && boxArea(largestPet) / (imageWidth * imageHeight) < MIN_PET_BOX_AREA_RATIO) {
 		throw new Error("Too far. Move closer to the affected skin.");
 	}
+	return { note: "" };
 }
 
 function boxArea(detection) {
@@ -1099,9 +1159,10 @@ async function analyze() {
 	hideError();
 	try {
 		const activeModel = await getModel();
-		const activeObjectDetector = await getObjectDetector();
 		await waitForImageElement(elements.previewImage);
-		validatePetDetections(await activeObjectDetector.detect(elements.previewImage));
+		if (!originalPetCheck) {
+			throw new Error("The original photo check was not completed. Please select the photo again.");
+		}
 		const predictions = await activeModel.predict(elements.previewImage);
 		if (currentRevision !== selectionRevision || !selectedFile) return;
 		const items = validatePredictions(predictions);
