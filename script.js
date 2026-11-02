@@ -1166,10 +1166,6 @@ async function analyze() {
 		const predictions = await activeModel.predict(elements.previewImage);
 		if (currentRevision !== selectionRevision || !selectedFile) return;
 		const items = validatePredictions(predictions);
-		if (items[0].score < CLASSIFIER_CONFIDENCE_THRESHOLD ||
-			items[0].score - items[1].score < CLASSIFIER_MARGIN_THRESHOLD) {
-			throw new Error("Not sure. Try a closer, clearer photo.");
-		}
 		renderResults(items);
 	} catch (error) {
 		if (currentRevision === selectionRevision) {
@@ -1189,7 +1185,8 @@ async function analyze() {
 
 function renderResults(items) {
 	const leading = items[0];
-	const uncertain = leading.score < 0.55 || leading.score - items[1].score < 0.1;
+	const uncertain = leading.score < CLASSIFIER_CONFIDENCE_THRESHOLD ||
+		leading.score - items[1].score < CLASSIFIER_MARGIN_THRESHOLD;
 	lastScreeningResult = {
 		at: new Date().toISOString(),
 		petName: elements.screeningPetName.value.trim(),
@@ -1255,7 +1252,7 @@ function renderResults(items) {
 	if (uncertain) {
 		const caution = document.createElement("p");
 		caution.className = "tiny caution";
-		caution.textContent = "The model scores are close or the leading score is low. Treat this result as uncertain and ask a veterinarian for an assessment.";
+		caution.textContent = "The model scores are close or the leading score is low. Try a closer, clearer photo and treat this result as uncertain; ask a veterinarian for an assessment if the concern persists.";
 		elements.scoreList.append(caution);
 	}
 }
