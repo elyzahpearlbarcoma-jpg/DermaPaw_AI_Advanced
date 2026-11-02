@@ -1,4 +1,8 @@
 const MODEL_URL = "https://teachablemachine.withgoogle.com/models/n1XfBcG2q/";
+const OBJECT_CONFIDENCE_THRESHOLD = 0.5;
+const CLASSIFIER_CONFIDENCE_THRESHOLD = 0.7;
+const CLASSIFIER_MARGIN_THRESHOLD = 0.15;
+const MIN_PET_BOX_AREA_RATIO = 0.6;
 const SPECIES_SUPPORT = Object.freeze({
 	UNKNOWN_NOT_VERIFIED: "unknown-not-verified",
 	DOGS_VERIFIED: "dogs-verified",
@@ -143,6 +147,8 @@ const elements = {
 	dropzone: $("dropzone"),
 	emptyState: $("emptyState"),
 	errorBox: $("errorBox"),
+	errorMessage: $("errorMessage"),
+	retryButton: $("retryScan"),
 	fileInput: $("imageInput"),
 	fileName: $("fileName"),
 	fileSize: $("fileSize"),
@@ -150,6 +156,11 @@ const elements = {
 	modelStatus: $("modelStatus"),
 	previewImage: $("previewImage"),
 	previewWrap: $("previewWrap"),
+	cropPanel: $("cropPanel"),
+	cropCanvas: $("cropCanvas"),
+	cropZoom: $("cropZoom"),
+	applyCrop: $("applyCrop"),
+	skipCrop: $("skipCrop"),
 	removeButton: $("removeImage"),
 	resultContent: $("resultContent"),
 	resultStatus: $("resultStatus"),
@@ -236,9 +247,13 @@ if (Object.values(views).some(view => !view)) {
 let selectedPet = "cat";
 let selectedFile = null;
 let previewObjectUrl = null;
+let cropPending = false;
 let model = null;
 let modelPromise = null;
 let modelState = "loading";
+let objectDetector = null;
+let objectDetectorPromise = null;
+let objectDetectorState = "loading";
 let modelClassInfo = new Map();
 let selectionRevision = 0;
 let isAnalyzing = false;
@@ -324,6 +339,10 @@ elements.resultStatus.setAttribute("aria-live", "polite");
 elements.errorBox.setAttribute("role", "alert");
 elements.removeButton.setAttribute("type", "button");
 elements.removeButton.setAttribute("aria-label", "Remove selected image");
+elements.retryButton.addEventListener("click", clearImage);
+elements.cropZoom.addEventListener("input", drawCropPreview);
+elements.applyCrop.addEventListener("click", applyCrop);
+elements.skipCrop.addEventListener("click", skipCrop);
 document.querySelector(".pet-switch")?.setAttribute("role", "group");
 document.querySelector(".pet-switch")?.setAttribute("aria-label", "Choose animal type");
 elements.fileInput.accept = ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
@@ -701,13 +720,14 @@ async function handleFile(file) {
 		elements.fileSize.textContent = `${formatFileSize(file.size)} • Ready`;
 		elements.previewWrap.hidden = false;
 		elements.dropzone.hidden = true;
-		elements.analyzeButton.disabled = false;
+		openCropEditor();
 		updateAnalysisReadiness();
 		resetResults();
 	} catch {
 		URL.revokeObjectURL(objectUrl);
 		showError("This file could not be opened as an image. Try another JPG, PNG, or WEBP photo.");
 	}
+
 }
 
 function loadImage(source) {
@@ -717,6 +737,61 @@ function loadImage(source) {
 		image.onerror = reject;
 		image.src = source;
 	});
+}
+
+function openCropEditor() {
+	cropPending = true;
+	elements.cropPanel.hidden = false;
+	elements.cropZoom.value = "1";
+	if (elements.previewImage.complete) {
+		drawCropPreview();
+	} else {
+		elements.previewImage.addEventListener("load", drawCropPreview, { once: true });
+	}
+	updateAnalysisReadiness();
+}
+
+function drawCropPreview() {
+	if (!cropPending || !elements.previewImage.naturalWidth || !elements.cropCanvas) return;
+	const context = elements.cropCanvas.getContext("2d");
+	if (!context) return;
+	const width = elements.previewImage.naturalWidth;
+	const height = elements.previewImage.naturalHeight;
+	const zoom = Number(elements.cropZoom.value);
+	const side = Math.min(width, height) / zoom;
+	const sourceX = (width - side) / 2;
+	const sourceY = (height - side) / 2;
+	context.clearRect(0, 0, elements.cropCanvas.width, elements.cropCanvas.height);
+	context.drawImage(elements.previewImage, sourceX, sourceY, side, side, 0, 0, elements.cropCanvas.width, elements.cropCanvas.height);
+}
+
+function skipCrop() {
+	cropPending = false;
+	elements.cropPanel.hidden = true;
+	updateAnalysisReadiness();
+}
+
+async function applyCrop() {
+	if (!cropPending) return;
+	const canvas = elements.cropCanvas;
+	if (!canvas || typeof canvas.toBlob !== "function") {
+		showError("Crop is unavailable. Try again with the original photo.");
+		return;
+	}
+	const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.92));
+	if (!blob) {
+		showError("Crop could not be created. Try again.");
+		return;
+	}
+	const croppedFile = new File([blob], selectedFile?.name || "dermapaw-crop.jpg", { type: "image/jpeg" });
+	const croppedUrl = URL.createObjectURL(blob);
+	if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+	previewObjectUrl = croppedUrl;
+	selectedFile = croppedFile;
+	elements.previewImage.src = croppedUrl;
+	elements.fileName.textContent = croppedFile.name;
+	elements.fileSize.textContent = `${formatFileSize(croppedFile.size)} • Cropped`;
+	skipCrop();
 }
 
 function waitForImageElement(image) {
@@ -742,11 +817,13 @@ function clearImage() {
 	selectionRevision++;
 	if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
 	previewObjectUrl = null;
+	cropPending = false;
 	selectedFile = null;
 	elements.fileInput.value = "";
 	elements.previewImage.removeAttribute("src");
 	elements.previewImage.alt = "Pet photo preview";
 	elements.previewWrap.hidden = true;
+	elements.cropPanel.hidden = true;
 	elements.dropzone.hidden = false;
 	elements.analyzeButton.disabled = true;
 	updateAnalysisReadiness();
@@ -784,7 +861,7 @@ function updateIdleStatus() {
 }
 
 function updateAnalysisReadiness() {
-	elements.analyzeButton.disabled = !selectedFile || modelState !== "ready" || isAnalyzing;
+	elements.analyzeButton.disabled = !selectedFile || modelState !== "ready" || objectDetectorState !== "ready" || isAnalyzing;
 }
 
 function updateModelStatus(message, state) {
@@ -865,17 +942,29 @@ function renderGuidePrediction(result) {
 }
 
 async function initializeModel() {
-	updateModelStatus("Loading the trained image model…", "loading");
+	updateModelStatus("Loading the pet detector and trained image model…", "loading");
 	elements.resultStatus.textContent = "Loading model";
+	const results = await Promise.allSettled([getModel(), getObjectDetector()]);
+	const modelResult = results[0];
+	const detectorResult = results[1];
+	if (modelResult.status === "rejected" || detectorResult.status === "rejected") {
+		modelState = "unavailable";
+		objectDetectorState = "unavailable";
+		const error = modelResult.status === "rejected" ? modelResult.reason : detectorResult.reason;
+		updateModelStatus(error.message || "The image models could not be loaded.", "error");
+		updateIdleStatus();
+		return;
+	}
 	try {
-		const activeModel = await getModel();
+		const activeModel = modelResult.value;
 		if (typeof activeModel.getClassLabels !== "function") {
 			throw new Error("The loaded model library cannot read the model's class labels.");
 		}
 		const labels = configureModelClasses(activeModel.getClassLabels());
 		renderGuideModelClasses();
 		modelState = "ready";
-		updateModelStatus(`Model ready. Classes from metadata: ${labels.join("; ")}`, "ready");
+		objectDetectorState = "ready";
+		updateModelStatus(`Models ready. Classes from metadata: ${labels.join("; ")}`, "ready");
 	} catch (error) {
 		modelState = "unavailable";
 		updateModelStatus(error.message || "The trained model could not be loaded.", "error");
@@ -914,6 +1003,57 @@ async function getModel() {
 		throw new Error("The AI model loaded without a usable prediction function. Check the exported model files and URL, then try again.");
 	}
 	return model;
+}
+
+async function getObjectDetector() {
+	if (!window.cocoSsd?.load) {
+		throw new Error("The COCO-SSD library did not load. Check your internet connection and refresh the page.");
+	}
+	if (!objectDetectorPromise) {
+		objectDetectorPromise = window.cocoSsd.load();
+		try {
+			objectDetector = await objectDetectorPromise;
+		} catch {
+			objectDetectorPromise = null;
+			throw new Error("The pet detector could not be loaded. Check your internet connection and refresh the page.");
+		}
+	} else {
+		objectDetector = await objectDetectorPromise;
+	}
+	if (!objectDetector || typeof objectDetector.detect !== "function") {
+		objectDetector = null;
+		objectDetectorPromise = null;
+		throw new Error("The pet detector loaded without a usable detection function. Refresh the page and try again.");
+	}
+	return objectDetector;
+}
+
+function validatePetDetections(detections) {
+	if (!Array.isArray(detections)) {
+		throw new Error("The pet detector returned an invalid result. Please try again.");
+	}
+	const confidentDetections = detections.filter(detection =>
+		typeof detection?.score === "number" && detection.score > OBJECT_CONFIDENCE_THRESHOLD
+	);
+	const detectedLabels = confidentDetections.map(detection => detection.class);
+	const hasCatOrDog = detectedLabels.some(label => label === "cat" || label === "dog");
+	if (!hasCatOrDog) {
+		if (detectedLabels.includes("person")) {
+			throw new Error("Human detected. Please upload a photo of your pet.");
+		}
+		throw new Error("No cat or dog detected. Please upload a clearer photo of your pet.");
+	}
+	const largestPet = confidentDetections
+		.filter(detection => detection.class === "cat" || detection.class === "dog")
+		.sort((first, second) => boxArea(second) - boxArea(first))[0];
+	if (largestPet && boxArea(largestPet) / (elements.previewImage.naturalWidth * elements.previewImage.naturalHeight) < MIN_PET_BOX_AREA_RATIO) {
+		throw new Error("Too far. Move closer to the affected skin.");
+	}
+}
+
+function boxArea(detection) {
+	const [, , width, height] = detection.bbox || [];
+	return Number.isFinite(width) && Number.isFinite(height) ? Math.max(0, width * height) : 0;
 }
 
 function validatePredictions(predictions) {
@@ -959,10 +1099,17 @@ async function analyze() {
 	hideError();
 	try {
 		const activeModel = await getModel();
+		const activeObjectDetector = await getObjectDetector();
 		await waitForImageElement(elements.previewImage);
+		validatePetDetections(await activeObjectDetector.detect(elements.previewImage));
 		const predictions = await activeModel.predict(elements.previewImage);
 		if (currentRevision !== selectionRevision || !selectedFile) return;
-		renderResults(validatePredictions(predictions));
+		const items = validatePredictions(predictions);
+		if (items[0].score < CLASSIFIER_CONFIDENCE_THRESHOLD ||
+			items[0].score - items[1].score < CLASSIFIER_MARGIN_THRESHOLD) {
+			throw new Error("Not sure. Try a closer, clearer photo.");
+		}
+		renderResults(items);
 	} catch (error) {
 		if (currentRevision === selectionRevision) {
 			showError(error.message || "Screening could not be completed. Check the model connection and try again.");
@@ -1636,11 +1783,11 @@ function readBlobAsDataUrl(blob) {
 }
 
 function showError(message) {
-	elements.errorBox.textContent = message;
+	elements.errorMessage.textContent = message;
 	elements.errorBox.hidden = false;
 }
 
 function hideError() {
-	elements.errorBox.textContent = "";
+	elements.errorMessage.textContent = "";
 	elements.errorBox.hidden = true;
 }
