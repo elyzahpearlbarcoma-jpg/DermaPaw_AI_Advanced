@@ -4,6 +4,7 @@ const FACE_THRESHOLD = 0.8;
 const PET_THRESHOLD = 0.5;
 const CLASSIFIER_CONFIDENCE_THRESHOLD = 0.7;
 const CLASSIFIER_MARGIN_THRESHOLD = 0.15;
+const DEBUG_CLASSIFICATION = new URLSearchParams(window.location.search).has("debugClassification");
 const MIN_PET_BOX_AREA_RATIO = 0.6;
 const SPECIES_SUPPORT = Object.freeze({
 	UNKNOWN_NOT_VERIFIED: "unknown-not-verified",
@@ -152,6 +153,7 @@ const elements = {
 	errorMessage: $("errorMessage"),
 	retryButton: $("retryScan"),
 	fileInput: $("imageInput"),
+	uploadButton: $("uploadButton"),
 	fileName: $("fileName"),
 	fileSize: $("fileSize"),
 	guidanceText: $("guidanceText"),
@@ -352,6 +354,7 @@ elements.skipCrop.addEventListener("click", skipCrop);
 document.querySelector(".pet-switch")?.setAttribute("role", "group");
 document.querySelector(".pet-switch")?.setAttribute("aria-label", "Choose animal type");
 elements.fileInput.accept = ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
+elements.uploadButton.addEventListener("click", () => elements.fileInput.click());
 
 if (uploadNote) uploadNote.textContent = "Uploaded photos are analyzed in this browser and are not sent to an unrelated image service. Image classification alone cannot determine a reliable recovery timeline.";
 if (emptyMessage) emptyMessage.textContent = "Load a photo and analyze it to see the model's actual scores for all four classes.";
@@ -1141,6 +1144,42 @@ function validatePredictions(predictions) {
 	return items.sort((first, second) => second.score - first.score);
 }
 
+function logClassificationDebug(predictions, items) {
+	if (!DEBUG_CLASSIFICATION) return;
+	console.groupCollapsed("[DermaPaw] Classification diagnostics");
+	console.log("Model", {
+		modelUrl: MODEL_URL,
+		modelJsonUrl: new URL("model.json", MODEL_URL).href,
+		metadataJsonUrl: new URL("metadata.json", MODEL_URL).href,
+		classLabels: model?.getClassLabels?.() || []
+	});
+	console.log("Input", {
+		fileName: selectedFile?.name || "",
+		cropApplied: Boolean(selectedFile?.name && elements.fileSize.textContent.includes("Cropped")),
+		width: elements.previewImage.naturalWidth,
+		height: elements.previewImage.naturalHeight,
+		complete: elements.previewImage.complete,
+		source: elements.previewImage.currentSrc || elements.previewImage.src
+	});
+	console.log("Raw model predictions", predictions.map(prediction => ({
+		className: prediction?.className,
+		probability: prediction?.probability
+	})));
+	console.log("Mapped and ranked predictions", items.map(item => ({
+		className: item.displayName,
+		sourceName: item.sourceName,
+		probability: item.score
+	})));
+	console.log("Decision", {
+		predictedClass: items[0].displayName,
+		leadingScore: items[0].score,
+		topTwoMargin: items[0].score - items[1].score,
+		confidenceThreshold: CLASSIFIER_CONFIDENCE_THRESHOLD,
+		marginThreshold: CLASSIFIER_MARGIN_THRESHOLD
+	});
+	console.groupEnd();
+}
+
 async function analyze() {
 	if (isAnalyzing) return;
 	if (!selectedFile) {
@@ -1166,6 +1205,7 @@ async function analyze() {
 		const predictions = await activeModel.predict(elements.previewImage);
 		if (currentRevision !== selectionRevision || !selectedFile) return;
 		const items = validatePredictions(predictions);
+		logClassificationDebug(predictions, items);
 		renderResults(items);
 	} catch (error) {
 		if (currentRevision === selectionRevision) {

@@ -193,12 +193,18 @@ font-size:9px}
 margin:6px 0 0}
 .icon{width:34px;
 height:34px;
+border:0;
+padding:0;
 display:grid;
 place-items:center;
 border-radius:11px;
 background:var(--pale);
 color:var(--teal);
-font-size:22px}
+font:inherit;
+font-size:22px;
+cursor:pointer}
+.icon:focus-visible{outline:3px solid var(--coral);
+outline-offset:3px}
 .muted{color:var(--muted);
 font-size:12px;
 line-height:1.6}
